@@ -1,0 +1,13 @@
+{
+    "name": "sweep",
+    "version": "1.0.0",
+    "description": "A Web Bluetooth app for CurlingStone data",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "express": "^4.18.2"
+    }
+  }
+  
