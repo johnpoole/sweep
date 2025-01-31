@@ -2,23 +2,36 @@
 #include <Wire.h>
 #include <Arduino_LSM6DSOX.h>
 
-// Define BLE Service and Characteristics
-BLEService imuService("180A");  
+// Define BLE Service UUID (must be a valid 128-bit UUID)
+#define SERVICE_UUID "12345678-1234-5678-1234-56789abcdef0"
 
-BLEFloatCharacteristic accelXCharacteristic("2A98", BLERead | BLENotify);
-BLEFloatCharacteristic accelYCharacteristic("2A99", BLERead | BLENotify);
-BLEFloatCharacteristic accelZCharacteristic("2A9A", BLERead | BLENotify);
+// Define BLE Characteristic UUIDs
+#define ACCEL_X_UUID "00002A98-0000-1000-8000-00805f9b34fb"
+#define ACCEL_Y_UUID "00002A99-0000-1000-8000-00805f9b34fb"
+#define ACCEL_Z_UUID "00002A9A-0000-1000-8000-00805f9b34fb"
 
-BLEFloatCharacteristic gyroXCharacteristic("2A9B", BLERead | BLENotify);
-BLEFloatCharacteristic gyroYCharacteristic("2A9C", BLERead | BLENotify);
-BLEFloatCharacteristic gyroZCharacteristic("2A9D", BLERead | BLENotify);
+#define GYRO_X_UUID "00002A9B-0000-1000-8000-00805f9b34fb"
+#define GYRO_Y_UUID "00002A9C-0000-1000-8000-00805f9b34fb"
+#define GYRO_Z_UUID "00002A9D-0000-1000-8000-00805f9b34fb"
+
+// Create BLE service
+BLEService imuService(SERVICE_UUID);
+
+// Create BLE characteristics
+BLEFloatCharacteristic accelXCharacteristic(ACCEL_X_UUID, BLERead | BLENotify);
+BLEFloatCharacteristic accelYCharacteristic(ACCEL_Y_UUID, BLERead | BLENotify);
+BLEFloatCharacteristic accelZCharacteristic(ACCEL_Z_UUID, BLERead | BLENotify);
+
+BLEFloatCharacteristic gyroXCharacteristic(GYRO_X_UUID, BLERead | BLENotify);
+BLEFloatCharacteristic gyroYCharacteristic(GYRO_Y_UUID, BLERead | BLENotify);
+BLEFloatCharacteristic gyroZCharacteristic(GYRO_Z_UUID, BLERead | BLENotify);
 
 void setup() {
     Serial.begin(115200);
     Wire.begin();
 
     // Initialize IMU
-    Serial.println("IMU Initialized."+ IMU.begin());
+    Serial.println("IMU Initialized." + IMU.begin());
 
     // Initialize BLE
     if (!BLE.begin()) {
@@ -55,8 +68,6 @@ void loop() {
             // Read acceleration and gyroscope data
             if (IMU.accelerationAvailable()) {
                 IMU.readAcceleration(ax, ay, az);
-            }else{
-              Serial.println("IMU not available");
             }
 
             if (IMU.gyroscopeAvailable()) {
