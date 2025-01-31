@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>BLE Demo</title>
+</head>
+<body>
+  <h1>Web Bluetooth Demo</h1>
+  <button id="connectButton">Connect to BLE Device</button>
+  <p id="status">Status: Disconnected</p>
+  <script>
+    const connectButton = document.getElementById('connectButton');
+    const statusElement = document.getElementById('status');
+
+    // Replace with your device's service and characteristic UUIDs
+    const SERVICE_UUID = '12345678-1234-1234-1234-1234567890ab';
+    const CHARACTERISTIC_UUID = '87654321-4321-4321-4321-ba0987654321';
+
+    let bleDevice;
+    let bleServer;
+    let bleCharacteristic;
+
+    connectButton.addEventListener('click', async () => {
+      try {
+        // Request device with specified service
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [SERVICE_UUID] }]
+        });
+        statusElement.textContent = 'Status: Device selected, connecting...';
+
+        // Connect GATT
+        bleServer = await bleDevice.gatt.connect();
+        statusElement.textContent = 'Status: GATT connected';
+
+        // Get service and characteristic
+        const service = await bleServer.getPrimaryService(SERVICE_UUID);
+        bleCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+        // Optionally read initial value
+        const value = await bleCharacteristic.readValue();
+        parseData(value); // a function to parse your data
+
+        // Set up notifications (if your BLE device supports notifications)
+        bleCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+        await bleCharacteristic.startNotifications();
+        statusElement.textContent = 'Status: Notifications started';
+      } catch (error) {
+        console.error(error);
+        statusElement.textContent = 'Error: ' + error;
+      }
+    });
+
+    function handleNotifications(event) {
+      const value = event.target.value;
+      parseData(value);
+    }
+
+    function parseData(dataView) {
+      // Example: read one 8-bit unsigned int
+      const sensorValue = dataView.getUint8(0);
+      console.log('Sensor value:', sensorValue);
+      statusElement.textContent = 'Sensor value: ' + sensorValue;
+    }
+  </script>
+</body>
+</html>
