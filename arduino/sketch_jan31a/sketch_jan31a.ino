@@ -55,6 +55,8 @@ void loop() {
             // Read acceleration and gyroscope data
             if (IMU.accelerationAvailable()) {
                 IMU.readAcceleration(ax, ay, az);
+            }else{
+              Serial.println("IMU not available");
             }
 
             if (IMU.gyroscopeAvailable()) {
