@@ -2,90 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>CurlingStone BLE Demo</title>
+  <title>UNO-R4 IMU BLE Demo</title>
 </head>
 <body>
-  <h1>BLE CurlingStone Stats</h1>
-  <button id="connectButton">Connect to CurlingStone</button>
+  <h1>IMU Sensor Data</h1>
+  <button id="connectButton">Connect to UNO-R4-IMU</button>
   
-  <h2>Extra Distance: <span id="distanceValue">--</span></h2>
-  <h2>Extra Curl: <span id="curlValue">--</span></h2>
+  <h2>Acceleration:</h2>
+  <p>X: <span id="accelX">--</span></p>
+  <p>Y: <span id="accelY">--</span></p>
+  <p>Z: <span id="accelZ">--</span></p>
+  
+  <h2>Gyroscope:</h2>
+  <p>X: <span id="gyroX">--</span></p>
+  <p>Y: <span id="gyroY">--</span></p>
+  <p>Z: <span id="gyroZ">--</span></p>
   
   <script>
-    // DOM elements for displaying values
     const connectBtn = document.getElementById('connectButton');
-    const distanceSpan = document.getElementById('distanceValue');
-    const curlSpan = document.getElementById('curlValue');
-    
-    // Bluetooth UUIDs
-    // Service "180C" is used in your code.
-    // Characteristics "2A6E" (extraDistance) and "2A6F" (extraCurl).
-    const SERVICE_UUID = 0x180C;    // or "0000180c-0000-1000-8000-00805f9b34fb"
-    const DISTANCE_CHAR_UUID = 0x2A98;
-    const CURL_CHAR_UUID = 0x2A99;
-    
+    const accelXSpan = document.getElementById('accelX');
+    const accelYSpan = document.getElementById('accelY');
+    const accelZSpan = document.getElementById('accelZ');
+    const gyroXSpan = document.getElementById('gyroX');
+    const gyroYSpan = document.getElementById('gyroY');
+    const gyroZSpan = document.getElementById('gyroZ');
+
+    const SERVICE_UUID = "180A";
+    const ACCEL_X_UUID = "2A98";
+    const ACCEL_Y_UUID = "2A99";
+    const ACCEL_Z_UUID = "2A9A";
+    const GYRO_X_UUID = "2A9B";
+    const GYRO_Y_UUID = "2A9C";
+    const GYRO_Z_UUID = "2A9D";
+
     let bleDevice;
     let bleServer;
-    let distanceCharacteristic;
-    let curlCharacteristic;
-    
-    connectBtn.addEventListener('click', async () => {
+    let imuService;
+
+    async function connectToDevice() {
       try {
-        // Request the BLE device by name (or filter by service).
-        // The Arduino advertises localName = "CurlingStone".
         bleDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ name: "CurlingStone" }],
+          filters: [{ name: "UNO-R4-IMU" }],
           optionalServices: [SERVICE_UUID]
         });
-        
+
         console.log("Device selected:", bleDevice.name);
-        
-        // Connect GATT
         bleServer = await bleDevice.gatt.connect();
-        console.log("GATT connected to", bleDevice.name);
-        
-        // Get the primary service
-        const service = await bleServer.getPrimaryService(SERVICE_UUID);
-        
-        // Get characteristics
-        distanceCharacteristic = await service.getCharacteristic(DISTANCE_CHAR_UUID);
-        curlCharacteristic = await service.getCharacteristic(CURL_CHAR_UUID);
-        
-        // Listen for notifications on each characteristic
-        distanceCharacteristic.addEventListener('characteristicvaluechanged', handleDistance);
-        curlCharacteristic.addEventListener('characteristicvaluechanged', handleCurl);
-        
-        // Start notifications
-        await distanceCharacteristic.startNotifications();
-        await curlCharacteristic.startNotifications();
-        
-        console.log("Notifications started on Distance & Curl characteristics.");
-        
+        console.log("Connected to", bleDevice.name);
+
+        imuService = await bleServer.getPrimaryService(SERVICE_UUID);
+        await subscribeToCharacteristic(imuService, ACCEL_X_UUID, accelXSpan);
+        await subscribeToCharacteristic(imuService, ACCEL_Y_UUID, accelYSpan);
+        await subscribeToCharacteristic(imuService, ACCEL_Z_UUID, accelZSpan);
+        await subscribeToCharacteristic(imuService, GYRO_X_UUID, gyroXSpan);
+        await subscribeToCharacteristic(imuService, GYRO_Y_UUID, gyroYSpan);
+        await subscribeToCharacteristic(imuService, GYRO_Z_UUID, gyroZSpan);
       } catch (error) {
         console.error("Error connecting to BLE device:", error);
       }
-    });
-    
-    // Parse 4 bytes as a 32-bit float, little-endian
-    function getFloat32Value(dataView) {
-      return dataView.getFloat32(0, true);
     }
-    
-    // Handle distance notifications
-    function handleDistance(event) {
-      const value = event.target.value; // DataView
-      const distance = getFloat32Value(value);
-      distanceSpan.textContent = distance.toFixed(2);
-      console.log("Extra Distance:", distance);
+
+    async function subscribeToCharacteristic(service, characteristicUUID, displayElement) {
+      try {
+        const characteristic = await service.getCharacteristic(characteristicUUID);
+        characteristic.addEventListener('characteristicvaluechanged', event => {
+          const value = event.target.value;
+          const floatValue = value.getFloat32(0, true);
+          displayElement.textContent = floatValue.toFixed(4);
+          console.log("Received:", characteristicUUID, floatValue);
+        });
+        await characteristic.startNotifications();
+        console.log("Subscribed to", characteristicUUID);
+      } catch (error) {
+        console.error("Error subscribing to characteristic:", characteristicUUID, error);
+      }
     }
-    
-    // Handle curl notifications
-    function handleCurl(event) {
-      const value = event.target.value; // DataView
-      const curl = getFloat32Value(value);
-      curlSpan.textContent = curl.toFixed(2);
-      console.log("Extra Curl:", curl);
-    }
+
+    connectBtn.addEventListener('click', connectToDevice);
   </script>
 </body>
 </html>
