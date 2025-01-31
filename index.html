@@ -2,64 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>BLE Demo</title>
+  <title>CurlingStone BLE Demo</title>
 </head>
 <body>
-  <h1>Web Bluetooth Demo</h1>
-  <button id="connectButton">Connect to BLE Device</button>
-  <p id="status">Status: Disconnected</p>
+  <h1>BLE CurlingStone Stats</h1>
+  <button id="connectButton">Connect to CurlingStone</button>
+  
+  <h2>Extra Distance: <span id="distanceValue">--</span></h2>
+  <h2>Extra Curl: <span id="curlValue">--</span></h2>
+  
   <script>
-    const connectButton = document.getElementById('connectButton');
-    const statusElement = document.getElementById('status');
-
-    // Replace with your device's service and characteristic UUIDs
-    const SERVICE_UUID = 'UNO-R4-IMU';
-    const CHARACTERISTIC_UUID = '87654321-4321-4321-4321-ba0987654321';
-
+    // DOM elements for displaying values
+    const connectBtn = document.getElementById('connectButton');
+    const distanceSpan = document.getElementById('distanceValue');
+    const curlSpan = document.getElementById('curlValue');
+    
+    // Bluetooth UUIDs
+    // Service "180C" is used in your code.
+    // Characteristics "2A6E" (extraDistance) and "2A6F" (extraCurl).
+    const SERVICE_UUID = 0x180C;    // or "0000180c-0000-1000-8000-00805f9b34fb"
+    const DISTANCE_CHAR_UUID = 0x2A6E;
+    const CURL_CHAR_UUID = 0x2A6F;
+    
     let bleDevice;
     let bleServer;
-    let bleCharacteristic;
-
-    connectButton.addEventListener('click', async () => {
+    let distanceCharacteristic;
+    let curlCharacteristic;
+    
+    connectBtn.addEventListener('click', async () => {
       try {
-        // Request device with specified service
+        // Request the BLE device by name (or filter by service).
+        // The Arduino advertises localName = "CurlingStone".
         bleDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ services: [SERVICE_UUID] }]
+          filters: [{ name: "CurlingStone" }],
+          optionalServices: [SERVICE_UUID]
         });
-        statusElement.textContent = 'Status: Device selected, connecting...';
-
+        
+        console.log("Device selected:", bleDevice.name);
+        
         // Connect GATT
         bleServer = await bleDevice.gatt.connect();
-        statusElement.textContent = 'Status: GATT connected';
-
-        // Get service and characteristic
+        console.log("GATT connected to", bleDevice.name);
+        
+        // Get the primary service
         const service = await bleServer.getPrimaryService(SERVICE_UUID);
-        bleCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-
-        // Optionally read initial value
-        const value = await bleCharacteristic.readValue();
-        parseData(value); // a function to parse your data
-
-        // Set up notifications (if your BLE device supports notifications)
-        bleCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
-        await bleCharacteristic.startNotifications();
-        statusElement.textContent = 'Status: Notifications started';
+        
+        // Get characteristics
+        distanceCharacteristic = await service.getCharacteristic(DISTANCE_CHAR_UUID);
+        curlCharacteristic = await service.getCharacteristic(CURL_CHAR_UUID);
+        
+        // Listen for notifications on each characteristic
+        distanceCharacteristic.addEventListener('characteristicvaluechanged', handleDistance);
+        curlCharacteristic.addEventListener('characteristicvaluechanged', handleCurl);
+        
+        // Start notifications
+        await distanceCharacteristic.startNotifications();
+        await curlCharacteristic.startNotifications();
+        
+        console.log("Notifications started on Distance & Curl characteristics.");
+        
       } catch (error) {
-        console.error(error);
-        statusElement.textContent = 'Error: ' + error;
+        console.error("Error connecting to BLE device:", error);
       }
     });
-
-    function handleNotifications(event) {
-      const value = event.target.value;
-      parseData(value);
+    
+    // Parse 4 bytes as a 32-bit float, little-endian
+    function getFloat32Value(dataView) {
+      return dataView.getFloat32(0, true);
     }
-
-    function parseData(dataView) {
-      // Example: read one 8-bit unsigned int
-      const sensorValue = dataView.getUint8(0);
-      console.log('Sensor value:', sensorValue);
-      statusElement.textContent = 'Sensor value: ' + sensorValue;
+    
+    // Handle distance notifications
+    function handleDistance(event) {
+      const value = event.target.value; // DataView
+      const distance = getFloat32Value(value);
+      distanceSpan.textContent = distance.toFixed(2);
+      console.log("Extra Distance:", distance);
+    }
+    
+    // Handle curl notifications
+    function handleCurl(event) {
+      const value = event.target.value; // DataView
+      const curl = getFloat32Value(value);
+      curlSpan.textContent = curl.toFixed(2);
+      console.log("Extra Curl:", curl);
     }
   </script>
 </body>
