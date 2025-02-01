@@ -27,32 +27,47 @@ BLEFloatCharacteristic gyroYCharacteristic(GYRO_Y_UUID, BLERead | BLENotify);
 BLEFloatCharacteristic gyroZCharacteristic(GYRO_Z_UUID, BLERead | BLENotify);
 
 void setup() {
-    Serial.begin(115200);
-    Wire.begin();
+  Serial.begin(115200);
+  Wire.begin();
 
-    // Initialize IMU
-    Serial.println("IMU Initialized." + IMU.begin());
+  // Initialize IMU
+  IMU.begin();
+  Serial.println("IMU initialization attempted.");
 
-    // Initialize BLE
-    if (!BLE.begin()) {
-        Serial.println("Starting Bluetooth failed!");
-        while (1);
-    }
+  // Check if IMU is returning valid values
+  float ax, ay, az;
+  if (IMU.accelerationAvailable()) {
+    IMU.readAcceleration(ax, ay, az);
+    Serial.print("IMU Check: Accel X=");
+    Serial.print(ax);
+    Serial.print(" Y=");
+    Serial.print(ay);
+    Serial.print(" Z=");
+    Serial.println(az);
+  } else {
+    Serial.println("IMU acceleration not available. Check wiring.");
+  }
 
-    // Set up BLE characteristics
-    BLE.setLocalName("UNO-R4-IMU");
-    BLE.setAdvertisedService(imuService);
+  // Initialize BLE
+  if (!BLE.begin()) {
+    Serial.println("Starting Bluetooth failed!");
+    while (1)
+      ;
+  }
 
-    imuService.addCharacteristic(accelXCharacteristic);
-    imuService.addCharacteristic(accelYCharacteristic);
-    imuService.addCharacteristic(accelZCharacteristic);
-    imuService.addCharacteristic(gyroXCharacteristic);
-    imuService.addCharacteristic(gyroYCharacteristic);
-    imuService.addCharacteristic(gyroZCharacteristic);
+  BLE.setLocalName("UNO-R4-IMU");
+  BLE.setAdvertisedService(imuService);
 
-    BLE.addService(imuService);
-    BLE.advertise();
-    Serial.println("BLE Advertising...");
+  imuService.addCharacteristic(accelXCharacteristic);
+  imuService.addCharacteristic(accelYCharacteristic);
+  imuService.addCharacteristic(accelZCharacteristic);
+  imuService.addCharacteristic(gyroXCharacteristic);
+  imuService.addCharacteristic(gyroYCharacteristic);
+  imuService.addCharacteristic(gyroZCharacteristic);
+
+  BLE.addService(imuService);
+  BLE.advertise();
+  Serial.println("BLE Advertising...");
 }
 
 void loop() {
@@ -63,22 +78,25 @@ void loop() {
         Serial.println(central.address());
 
         while (central.connected()) {
-            float ax, ay, az, gx, gy, gz;
+            float ax = 0, ay = 0, az = 0, gx = 0, gy = 0, gz = 0;
 
-            // Read acceleration and gyroscope data
+            // Read acceleration and gyroscope data - force reading
             if (IMU.accelerationAvailable()) {
                 IMU.readAcceleration(ax, ay, az);
+            } else {
+                Serial.println("IMU Acceleration data not available!");
             }
 
             if (IMU.gyroscopeAvailable()) {
                 IMU.readGyroscope(gx, gy, gz);
+            } else {
+                Serial.println("IMU Gyroscope data not available!");
             }
 
-            // Send raw data over BLE
+            // Send data over BLE
             accelXCharacteristic.writeValue(ax);
             accelYCharacteristic.writeValue(ay);
             accelZCharacteristic.writeValue(az);
-
             gyroXCharacteristic.writeValue(gx);
             gyroYCharacteristic.writeValue(gy);
             gyroZCharacteristic.writeValue(gz);
@@ -96,9 +114,17 @@ void loop() {
             Serial.print(gy, 4);
             Serial.print(", Z=");
             Serial.println(gz, 4);
-
-            delay(2000);  // 100ms sampling rate
+if (millis() % 10000 < 100) {
+        resetIMU();
+      }
+            delay(200);  // Shorter delay for smoother updates
         }
         Serial.println("BLE Disconnected");
     }
+}
+
+
+void resetIMU() {
+  Serial.println("Resetting IMU...");
+  IMU.begin();
 }
